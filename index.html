@@ -7,7 +7,6 @@
     <title>Profile Image Upload & Face Detection</title>
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
-        /* Reset & base */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -26,7 +25,6 @@
             color: #333;
         }
 
-        /* Container card */
         .upload-card {
             background: #fff;
             border-radius: 12px;
@@ -45,7 +43,6 @@
             color: #222;
         }
 
-        /* Custom file input styling  for the image section */
         #imageUpload {
             display: none;
         }
@@ -68,14 +65,12 @@
             background-color: #357ABD;
         }
 
-        /* Disabled style for label */
         label[for="imageUpload"].disabled {
             opacity: 0.6;
             cursor: not-allowed;
             background-color: #4a90e2;
         }
 
-        /* Image container: circle with overflow hidden for profile styles */
         #image-container {
             position: relative;
             width: 260px;
@@ -88,17 +83,14 @@
             box-shadow: 0 8px 25px rgba(74, 144, 226, 0.25);
         }
 
-        /* Preview image */
         #preview {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
-            transition: opacity 0.3s ease;
+            display: block;
             border-radius: 50%;
         }
 
-        /* mayor canvas overlays preview */
         canvas {
             position: absolute !important;
             top: 0;
@@ -108,7 +100,6 @@
             user-select: none;
         }
 
-        /* showing success or my errors concerning the detected images */
         #message {
             margin-top: 20px;
             font-weight: 600;
@@ -127,15 +118,18 @@
         <input type="file" id="imageUpload" accept="image/*" />
 
         <div id="image-container">
-            <img id="preview" alt="Profile Preview" />
+            <img id="preview" src="passport-photo.png" alt="Profile Preview" />
         </div>
 
         <div id="message"></div>
     </div>
 
     <script>
-
         const messageEl = document.getElementById('message');
+        const label = document.getElementById('uploadLabel');
+        const preview = document.getElementById('preview');
+        const container = document.getElementById('image-container');
+
         async function loadModels() {
             const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
@@ -143,111 +137,81 @@
             await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
         }
 
+        async function detectFace(imageElement) {
+            if (imageElement.src.includes('passport-photo.png')) return; // Skip detection for default
+
+            preview.style.opacity = '0';
+            messageEl.textContent = 'Detecting faces...';
+            messageEl.style.color = '#357ABD'
+
+            const oldCanvas = container.querySelector('canvas');
+            if (oldCanvas) container.removeChild(oldCanvas);
+
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            const canvas = faceapi.createCanvasFromMedia(imageElement);
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.borderRadius = '50%';
+            container.appendChild(canvas);
+
+            const displaySize = { width: preview.width, height: preview.height };
+            faceapi.matchDimensions(canvas, displaySize);
+
+            const detections = await faceapi
+                .detectAllFaces(preview, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks();
+
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            faceapi.draw.drawDetections(canvas, resizedDetections);
+
+            if (resizedDetections.length === 1) {
+                messageEl.style.color = '#28a745';
+                messageEl.textContent = `Face detected (${resizedDetections.length})`;
+            } else if (resizedDetections.length > 1) {
+                messageEl.style.color = 'orange';
+                messageEl.textContent = `Multiple faces detected (${resizedDetections.length})`;
+            } else {
+                messageEl.style.color = '#dc3545';
+                messageEl.textContent = 'No face detected. Try another image.';
+            }
+
+            preview.style.opacity = '1';
+        }
+
         async function handleImageUpload(event) {
             const file = event.target.files[0];
+            if (!file) return;
 
             const fileError = [];
 
-            if (!file) return;
-
-            console.log(`File size: ${file.size} bytes`);
-
-            // 1. Validate size (<= 250KB)
             if (file.size > 1024 * 250) {
                 fileError.push('File size must be at most 250KB.');
             }
 
-            // 2. Validate type
             const acceptableFileTypes = ['image/jpg', 'image/png'];
             if (!acceptableFileTypes.includes(file.type)) {
                 fileError.push('Only a .jpg or .png image is supported.');
             }
 
-            // 3. If any errors, show them for 4 seconds and stop further execution
             if (fileError.length > 0) {
-                messageEl.style.color = '#dc3545'; // red
+                messageEl.style.color = '#dc3545';
                 messageEl.innerHTML = fileError.join('<br>');
-
-                setTimeout(() => {
-                    messageEl.innerHTML = '';
-                }, 5000);
-
+                setTimeout(() => { messageEl.innerHTML = ''; }, 5000);
                 return;
             }
 
-
-            const label = document.getElementById('uploadLabel');
-            if (!file) return;
-
-            //i will be disable the label while processing
             label.style.pointerEvents = 'none';
             label.classList.add('disabled');
 
-            const preview = document.getElementById('preview');
-            const container = document.getElementById('image-container');
-
-            preview.style.opacity = '0'; // fade out before loading new image
-            messageEl.textContent = 'Detecting faces...';
-
-            // Load the image preview
             preview.src = URL.createObjectURL(file);
 
             preview.onload = async () => {
-                preview.style.display = 'block';
-
-                // Wait a little to ensure image has rendered and sizes are correct
-                await new Promise(resolve => setTimeout(resolve, 50));
-
-                // Remove old canvas if exists
-                const oldCanvas = container.querySelector('canvas');
-                if (oldCanvas) container.removeChild(oldCanvas);
-
-                // Create new canvas overlay and append it to that my box
-                const canvas = faceapi.createCanvasFromMedia(preview);
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0';
-                canvas.style.left = '0';
-                canvas.style.borderRadius = '50%';
-                container.appendChild(canvas);
-
-                // Use the displayed image size for the canvas
-                const displaySize = { width: preview.width, height: preview.height };
-                faceapi.matchDimensions(canvas, displaySize);
-
-                // Detect faces with tinyFaceDetector
-                const detections = await faceapi
-                    .detectAllFaces(preview, new faceapi.TinyFaceDetectorOptions())
-                    .withFaceLandmarks();
-
-                // Resize detections to match display size
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-
-                // Clear canvas before drawing
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Draw detection boxes on canvas covering detected faces
-                faceapi.draw.drawDetections(canvas, resizedDetections);
-
-                // if you uncomment the line below, you will draw the landmark on the face. 😂🤣😂
-                // faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-
-                if (resizedDetections.length === 1) {
-                    messageEl.style.color = '#28a745'; // green
-                    messageEl.textContent = `Face detected (${resizedDetections.length})`;
-                } else if (resizedDetections.length > 1) {
-                    messageEl.style.color = 'orange'; // orange
-                    messageEl.textContent = `Multiple faces detected (${resizedDetections.length})`;
-                } else {
-                    messageEl.style.color = '#dc3545'; // red
-                    messageEl.textContent = 'No face detected. Try another image.';
-                }
-
-                preview.style.opacity = '1'; // fade in
-
+                await detectFace(preview);
                 URL.revokeObjectURL(preview.src);
-
-                // Re-enable the label after detection
                 label.style.pointerEvents = 'auto';
                 label.classList.remove('disabled');
             };
