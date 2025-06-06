@@ -134,6 +134,8 @@
     </div>
 
     <script>
+
+        const messageEl = document.getElementById('message');
         async function loadModels() {
             const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
@@ -143,7 +145,32 @@
 
         async function handleImageUpload(event) {
             const file = event.target.files[0];
-            const messageEl = document.getElementById('message');
+
+            const fileError = [];
+
+            if (!file) return;
+
+            console.log(`File size: ${file.size} bytes`);
+
+            // 1. Validate size (<= 250KB)
+            if (file.size > 1024 * 250) {
+                fileError.push('File size must be at most 250KB.');
+            }
+
+            // 2. Validate type
+            const acceptableFileTypes = ['image/jpg'];
+            if (!acceptableFileTypes.includes(file.type)) {
+                fileError.push('Only .jpg and .png images are supported.');
+            }
+
+            // 3. If any errors, show them and stop further execution
+            if (fileError.length > 0) {
+                messageEl.style.color = '#dc3545'; // red
+                messageEl.innerHTML = fileError.join('<br>');
+                return;
+            }
+
+
             const label = document.getElementById('uploadLabel');
             if (!file) return;
 
