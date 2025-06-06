@@ -158,9 +158,9 @@
             }
 
             // 2. Validate type
-            const acceptableFileTypes = ['image/jpg'];
+            const acceptableFileTypes = ['image/jpg', 'image/png'];
             if (!acceptableFileTypes.includes(file.type)) {
-                fileError.push('Only a .jpg image is supported.');
+                fileError.push('Only a .jpg or .png image is supported.');
             }
 
             // 3. If any errors, show them for 4 seconds and stop further execution
