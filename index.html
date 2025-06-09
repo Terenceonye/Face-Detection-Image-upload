@@ -192,7 +192,7 @@
                 fileError.push('File size must be at most 250KB.');
             }
 
-            const acceptableFileTypes = ['image/jpg', 'image/png'];
+            const acceptableFileTypes = ['image/jpg', 'image/png', 'image/jpeg'];
             if (!acceptableFileTypes.includes(file.type)) {
                 fileError.push('Only a .jpg or .png image is supported.');
             }
